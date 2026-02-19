@@ -23,7 +23,7 @@ venv.bak/
 *.swo
 
 # Database
-*.db
+*.dbgit push
 *.sqlite3
 
 # Logs
