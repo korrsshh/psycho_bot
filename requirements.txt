@@ -1,11 +1,11 @@
-# Core dependencies
+# Build tools
+pip>=24.0,<26.0
+
+# Core
 aiogram==3.13.1
 python-dotenv==1.0.1
 aiosqlite==0.20.0
 
-# Explicit pydantic with compatible version (has pre-built wheels)
+# Pydantic with EXACT versions that have pre-built wheels for Python 3.11
 pydantic==2.5.2
 pydantic-core==2.14.5
-
-# Build tools (for Render)
-pip>=24.0
