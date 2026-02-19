@@ -1,11 +1,6 @@
-# Build tools
-pip>=24.0,<26.0
-
-# Core
+# Стабильные версии с готовыми wheel для Python 3.11
 aiogram==3.13.1
 python-dotenv==1.0.1
 aiosqlite==0.20.0
-
-# Pydantic with EXACT versions that have pre-built wheels for Python 3.11
-pydantic==2.5.2
-pydantic-core==2.14.5
+pydantic==2.6.4
+pydantic-core==2.16.3
