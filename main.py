@@ -27,12 +27,13 @@ async def on_startup(bot: Bot):
     webhook_url = f"{base_url}{webhook_path}"
     
     # Удаляем старый webhook (на всякий случай)
-    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.delete_webhook(drop_pending_updates=False)  # ⚠️ Не удаляем pending!
     
     # Устанавливаем новый
     await bot.set_webhook(
         webhook_url,
-        allowed_updates=dp.resolve_used_update_types()
+        allowed_updates=dp.resolve_used_update_types(),
+        request_timeout=30,
     )
     logger.info(f"✅ Webhook установлен: {webhook_url}")
 
