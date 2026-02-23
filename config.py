@@ -7,6 +7,7 @@ class Config:
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
     PSYCHOLOGIST_USERNAME = os.getenv("PSYCHOLOGIST_USERNAME", "@psychologist")
+    BASE_URL = os.getenv("BASE_URL", "https://твой-сервис.onrender.com")
     CHANNEL_ID = os.getenv("CHANNEL_ID", "")
     CHANNEL_INVITE_LINK = os.getenv("CHANNEL_INVITE_LINK", "")
     DB_PATH = os.getenv("DB_PATH", "users.db")

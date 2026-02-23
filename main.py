@@ -1,10 +1,11 @@
 import asyncio
 import logging
 import os
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from aiohttp import web  # ← Добавляем для HTTP-сервера
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
 from config import Config
 from database import Database
 
@@ -18,22 +19,22 @@ logger = logging.getLogger(__name__)
 # Импортируем роутеры
 from handlers import user, admin
 
-# 🌐 Минимальный HTTP-сервер для Render
-async def handle_health(request):
-    """Отвечает на запросы Render, чтобы он не убивал процесс"""
-    return web.Response(text="OK", status=200)
-
-async def start_dummy_server(port: int):
-    """Запускает простой сервер на нужном порту"""
-    app = web.Application()
-    app.router.add_get("/", handle_health)
-    app.router.add_get("/health", handle_health)
+async def on_startup(bot: Bot):
+    """Вызывается при запуске: устанавливаем webhook"""
+    # URL твоего сервиса на Render
+    base_url = os.getenv("BASE_URL", "https://твой-сервис.onrender.com")
+    webhook_path = f"/webhook/{bot.token}"
+    webhook_url = f"{base_url}{webhook_path}"
     
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host="0.0.0.0", port=port)
-    await site.start()
-    logger.info(f"🌐 Dummy server running on port {port}")
+    # Удаляем старый webhook (на всякий случай)
+    await bot.delete_webhook(drop_pending_updates=True)
+    
+    # Устанавливаем новый
+    await bot.set_webhook(
+        webhook_url,
+        allowed_updates=dp.resolve_used_update_types()
+    )
+    logger.info(f"✅ Webhook установлен: {webhook_url}")
 
 async def main():
     config = Config()
@@ -43,10 +44,11 @@ async def main():
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     
+    global dp  # Делаем dp глобальным для setup_application
     dp = Dispatcher()
-    db = Database()
     
     # Инициализация БД
+    db = Database()
     await db.init_db()
     logger.info("✅ База данных инициализирована")
     
@@ -54,27 +56,48 @@ async def main():
     dp.include_router(user.router)
     dp.include_router(admin.router)
     
-    # 🌐 Запускаем dummy-сервер для Render
-    # Render задаёт порт через переменную PORT, по умолчанию 10000
+    # Регистрация хука на запуск
+    dp.startup.register(on_startup)
+    
+    # Настройка aiohttp-сервера
+    app = web.Application()
+    
+    # Создаём обработчик запросов от Telegram
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
+        secret_token=config.WEBHOOK_SECRET  # Опционально: защита от фейковых запросов
+    )
+    webhook_requests_handler.register(app, path=f"/webhook/{bot.token}")
+    
+    # Health check для Render
+    async def health_handler(request):
+        return web.Response(text="OK", status=200)
+    app.router.add_get("/", health_handler)
+    app.router.add_get("/health", health_handler)
+    
+    # Подключаем aiogram к aiohttp
+    setup_application(app, dp, bot=bot)
+    
+    # Запуск сервера
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
     port = int(os.getenv("PORT", 10000))
-    asyncio.create_task(start_dummy_server(port))
+    site = web.TCPSite(runner, host="0.0.0.0", port=port)
+    await site.start()
     
-    # Запуск polling
-    bot_info = await bot.me()
-    username_display = bot_info.username or "без username"
-    logger.info(f"✅ Бот запущен (@{username_display})")
+    logger.info(f"🚀 Бот запущен на порту {port}")
     logger.info(f"👤 Админ ID: {config.ADMIN_ID}")
-    logger.info(f"👩‍⚕️ Психолог: {config.PSYCHOLOGIST_USERNAME}")
-    logger.info(f"📢 Канал для подписки: {config.CHANNEL_ID}")
     
-    # 🚀 Запускаем polling (основной процесс)
-    await dp.start_polling(bot)
-#запуск
+    # Держим процесс запущенным
+    await asyncio.Event().wait()
+
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("⏹️ Бот остановлен пользователем")
+        logger.info("⏹️ Бот остановлен")
     except Exception as e:
-        logger.error(f"❌ Критическая ошибка: {e}")
+        logger.error(f"❌ Ошибка: {e}")
         raise
