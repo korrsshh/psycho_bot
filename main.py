@@ -65,8 +65,7 @@ async def main():
     # Создаём обработчик запросов от Telegram
     webhook_requests_handler = SimpleRequestHandler(
         dispatcher=dp,
-        bot=bot,
-        secret_token=config.WEBHOOK_SECRET  # Опционально: защита от фейковых запросов
+        bot=bot
     )
     webhook_requests_handler.register(app, path=f"/webhook/{bot.token}")
     
